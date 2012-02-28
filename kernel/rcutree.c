@@ -1885,9 +1885,6 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 		rdp->qlen_lazy++;
 	else
 		rcu_idle_count_callbacks_posted();
-	smp_mb();  /* Count before adding callback for rcu_barrier(). */
-	*rdp->nxttail[RCU_NEXT_TAIL] = head;
-	rdp->nxttail[RCU_NEXT_TAIL] = &head->next;
 
 	if (__is_kfree_rcu_offset((unsigned long)func))
 		trace_rcu_kfree_callback(rsp->name, head, (unsigned long)func,
