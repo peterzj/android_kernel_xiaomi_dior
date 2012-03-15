@@ -2165,26 +2165,6 @@ static void rcu_cleanup_after_idle(int cpu)
 static void rcu_prepare_for_idle(int cpu)
 {
 	struct timer_list *tp;
-	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-
-	/*
-	 * If this is an idle re-entry, for example, due to use of
-	 * RCU_NONIDLE() or the new idle-loop tracing API within the idle
-	 * loop, then don't take any state-machine actions, unless the
-	 * momentary exit from idle queued additional non-lazy callbacks.
-	 * Instead, repost the ->idle_gp_timer if this CPU has callbacks
-	 * pending.
-	 */
-	if (!rdtp->idle_first_pass &&
-	    (rdtp->nonlazy_posted == rdtp->nonlazy_posted_snap)) {
-		if (rcu_cpu_has_callbacks(cpu)) {
-			tp = &rdtp->idle_gp_timer;
-			mod_timer_pinned(tp, rdtp->idle_gp_timer_expires);
-		}
-		return;
-	}
-	rdtp->idle_first_pass = 0;
-	rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted - 1;
 
 	/*
 	 * If this is an idle re-entry, for example, due to use of
@@ -2197,9 +2177,10 @@ static void rcu_prepare_for_idle(int cpu)
 	if (!per_cpu(rcu_idle_first_pass, cpu) &&
 	    (per_cpu(rcu_nonlazy_posted, cpu) ==
 	     per_cpu(rcu_nonlazy_posted_snap, cpu))) {
-		if (rcu_cpu_has_callbacks(cpu))
-			mod_timer(&per_cpu(rcu_idle_gp_timer, cpu),
-				  per_cpu(rcu_idle_gp_timer_expires, cpu));
+		if (rcu_cpu_has_callbacks(cpu)) {
+			tp = &per_cpu(rcu_idle_gp_timer, cpu);
+			mod_timer_pinned(tp, per_cpu(rcu_idle_gp_timer_expires, cpu));
+		}
 		return;
 	}
 	per_cpu(rcu_idle_first_pass, cpu) = 0;
@@ -2243,8 +2224,8 @@ static void rcu_prepare_for_idle(int cpu)
 		else
 			per_cpu(rcu_idle_gp_timer_expires, cpu) =
 					   jiffies + RCU_IDLE_LAZY_GP_DELAY;
-		mod_timer(&per_cpu(rcu_idle_gp_timer, cpu),
-			  per_cpu(rcu_idle_gp_timer_expires, cpu));
+		tp = &per_cpu(rcu_idle_gp_timer, cpu);
+		mod_timer_pinned(tp, per_cpu(rcu_idle_gp_timer_expires, cpu));
 		per_cpu(rcu_nonlazy_posted_snap, cpu) =
 			per_cpu(rcu_nonlazy_posted, cpu);
 		return; /* Nothing more to do immediately. */
