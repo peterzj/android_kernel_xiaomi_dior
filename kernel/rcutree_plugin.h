@@ -2119,8 +2119,7 @@ void rcu_idle_demigrate(void *unused)
  */
 static void rcu_idle_gp_timer_func(unsigned long unused)
 {
-	int cpu = (int)cpu_in;
-
+	WARN_ON_ONCE(1); /* Getting here can hang the system... */
 	trace_rcu_prep_idle("Timer");
 }
 
