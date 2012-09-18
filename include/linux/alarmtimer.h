@@ -45,8 +45,11 @@ struct alarm {
 void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 		enum alarmtimer_restart (*function)(struct alarm *, ktime_t));
 int alarm_start(struct alarm *alarm, ktime_t start);
+<<<<<<< HEAD
 int alarm_start_relative(struct alarm *alarm, ktime_t start);
 void alarm_restart(struct alarm *alarm);
+=======
+>>>>>>> 23d67f9... alarmtimer: Use hrtimer per-alarm instead of per-base
 int alarm_try_to_cancel(struct alarm *alarm);
 int alarm_cancel(struct alarm *alarm);
 void set_power_on_alarm(long secs, bool enable);
