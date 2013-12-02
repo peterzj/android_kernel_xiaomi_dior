@@ -32,7 +32,6 @@
 #include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
-#include <linux/io.h>
 #include <linux/thermal.h>
 #include <mach/rpm-regulator.h>
 #include <mach/rpm-regulator-smd.h>
@@ -2068,34 +2067,10 @@ done_cc_nodes:
 	return ret;
 }
 
-int msm_thermal_pre_init(void)
-{
-	int ret = 0;
+static int virtual_sensor0 = -EINVAL;
+module_param(virtual_sensor0, int, 0644);
 
-	tsens_get_max_sensor_num(&max_tsens_num);
-	if (create_sensor_id_map()) {
-		pr_err("Creating sensor id map failed\n");
-		ret = -EINVAL;
-		goto pre_init_exit;
-	}
-
-	if (!thresh) {
-		thresh = kzalloc(
-				sizeof(struct threshold_info) * MSM_LIST_MAX_NR,
-				GFP_KERNEL);
-		if (!thresh) {
-			pr_err("kzalloc failed\n");
-			ret = -ENOMEM;
-			goto pre_init_exit;
-		}
-		memset(thresh, 0, sizeof(struct threshold_info) *
-			MSM_LIST_MAX_NR);
-	}
-pre_init_exit:
-	return ret;
-}
-
-int msm_thermal_init(struct msm_thermal_data *pdata)
+int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 {
 	int ret = 0;
 	uint32_t cpu;
@@ -3222,7 +3197,6 @@ int __init msm_thermal_late_init(void)
 	msm_thermal_add_psm_nodes();
 	msm_thermal_add_vdd_rstr_nodes();
 	msm_thermal_add_ocr_nodes();
-	msm_thermal_add_default_temp_limit_nodes();
 
 	interrupt_mode_init();
 	return 0;
