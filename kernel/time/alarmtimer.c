@@ -488,6 +488,7 @@ static int alarmtimer_suspend(struct device *dev)
 		__pm_wakeup_event(ws, 1 * MSEC_PER_SEC);
 	return ret;
 }
+#endif
 static int alarmtimer_resume(struct device *dev)
 {
 	struct rtc_device *rtc;
