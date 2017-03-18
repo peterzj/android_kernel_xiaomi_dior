@@ -502,7 +502,7 @@ void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 	de->ino = cpu_to_le32(ino);
 	set_de_type(de, mode);
 	for (i = 0; i < slots; i++) {
-		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
+		__set_bit_le(bit_pos + i, (void *)d->bitmap);
 		/* avoid wrong garbage data for readdir */
 		if (i)
 			(de + i)->name_len = 0;
@@ -708,7 +708,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	dentry_blk = page_address(page);
 	bit_pos = dentry - dentry_blk->dentry;
 	for (i = 0; i < slots; i++)
-		test_and_clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
+		__clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
 
 	/* Let's check and deallocate this dentry page */
 	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
