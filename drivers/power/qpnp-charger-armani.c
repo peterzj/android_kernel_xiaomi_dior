@@ -3772,95 +3772,6 @@ qpnp_chg_adjust_vddmax(struct qpnp_chg_chip *chip, int vbat_mv)
 	qpnp_chg_set_appropriate_vddmax(chip);
 }
 
-#define CHRG_OCV_WORK_MS 1000
-static void
-qpnp_chrg_ocv_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct qpnp_chg_chip *chip = container_of(dwork,
-				struct qpnp_chg_chip, chrg_ocv_work);
-	struct timespec ts;
-	int ibat_ma, vbat_mv = 0;
-	int cc;
-	int percent_soc;
-	int batt_temp;
-	int curr_time;
-
-	get_monotonic_boottime(&ts);
-	curr_time = ts.tv_sec;
-
-	if (!chip->bms_psy || !qpnp_chg_is_usb_chg_plugged_in(chip)) {
-		chip->chrg_ocv_state = CHRG_OCV_NO_CHRG;
-		return;
-	}
-
-	ibat_ma = get_prop_current_now(chip) / 1000;
-	vbat_mv = get_prop_battery_voltage_now(chip) / 1000;
-	percent_soc = get_prop_capacity(chip);
-	batt_temp = get_prop_batt_temp(chip);
-	cc = get_prop_charge_counter(chip);
-
-	if (chip->chrg_ocv_state == CHRG_OCV_OCV_WAIT) {
-		if (chip->chrg_ocv_time == 0) {
-			chip->chrg_ocv_cc_bf_uah = cc;
-			chip->chrg_ocv_time = curr_time;
-			if ((percent_soc > chip->chrg_ocv_high_soc_thr) ||
-			    (percent_soc < chip->chrg_ocv_low_soc_thr)) {
-				chip->chrg_ocv_time = 0;
-				chip->chrg_ocv_state = CHRG_OCV_NO_CHRG;
-				qpnp_chg_charge_en(chip,
-						   (!chip->charging_disabled &&
-						    !chip->out_of_temp &&
-						    !chip->ext_hi_temp));
-				pr_info("High SOC or Low SOC - NO CHRG\n");
-				goto reschedule;
-			}
-		}
-		if (curr_time < (chip->chrg_ocv_ocv_time +
-				 chip->chrg_ocv_time)) {
-			pr_debug("OCV = %d, ibat_ma = %d\n", vbat_mv, ibat_ma);
-			goto reschedule;
-		} else {
-			chip->chrg_ocv_time = 0;
-			chip->chrg_ocv_cc_af_uah = cc;
-			chip->chrg_ocv_bv_mv = vbat_mv;
-			pr_info("chrg_ocv_bv_mv = %d\n", chip->chrg_ocv_bv_mv);
-			pr_debug("ibat_ma = %d\n", ibat_ma);
-			pr_debug("af_uah = %d\n", chip->chrg_ocv_cc_af_uah);
-			pr_debug("bf_uah = %d\n", chip->chrg_ocv_cc_bf_uah);
-			qpnp_chg_charge_en(chip, (!chip->charging_disabled &&
-						  !chip->out_of_temp &&
-						  !chip->ext_hi_temp));
-			if ((abs(ibat_ma) >= chip->chrg_ocv_dchrg_thr_ma) ||
-			    (abs(chip->chrg_ocv_cc_af_uah -
-				 chip->chrg_ocv_cc_bf_uah) >=
-			     chip->chrg_ocv_cc_thr_uah)){
-				chip->chrg_ocv_state = CHRG_OCV_NO_CHRG;
-				pr_info("CHRG_OCV_OCV_WAIT - NO CHRG\n");
-				return;
-			} else {
-				pr_debug("CHRG_OCV_OCV_WAIT - Done\n");
-				chip->chrg_ocv_state = CHRG_OCV_FULL_WAIT;
-			}
-		}
-	}
-
-	if ((chip->chrg_ocv_state == CHRG_OCV_FULL_WAIT) && chip->chg_done) {
-		qpnp_chg_calculate_chrg_fcc(chip,
-					    chip->chrg_ocv_bv_mv,
-					    chip->chrg_ocv_cc_af_uah,
-					    chip->chrg_ocv_cc_ef_uah,
-					    batt_temp);
-		chip->chrg_ocv_state = CHRG_OCV_NO_CHRG;
-		power_supply_changed(&chip->batt_psy);
-		return;
-	}
-
-reschedule:
-	schedule_delayed_work(&chip->chrg_ocv_work,
-		msecs_to_jiffies(CHRG_OCV_WORK_MS));
-	return;
-}
 #define CONSECUTIVE_COUNT	3
 #define VBATDET_MAX_ERR_MV	50
 static void
@@ -4380,7 +4291,7 @@ qpnp_chg_reduce_power_stage(struct qpnp_chg_chip *chip)
 	}
 
 	if (usb_present && usb_ma_above_wall) {
-		alarm_start_relative(&chip->reduce_power_stage_alarm,
+				alarm_start_relative(&chip->reduce_power_stage_alarm, 
 				ns_to_ktime(POWER_STAGE_REDUCE_CHECK_PERIOD_NS));
 	} else {
 		pr_debug("stopping power stage workaround\n");

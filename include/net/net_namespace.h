@@ -23,6 +23,7 @@
 #endif
 #include <net/netns/xfrm.h>
 
+struct user_namespace;
 struct proc_dir_entry;
 struct net_device;
 struct sock;
@@ -52,6 +53,8 @@ struct net {
 	struct list_head	list;		/* list of network namespaces */
 	struct list_head	cleanup_list;	/* namespaces on death row */
 	struct list_head	exit_list;	/* Use only net_mutex */
+
+	struct user_namespace   *user_ns;	/* Owning user namespace */
 
 	unsigned int		proc_inum;
 
